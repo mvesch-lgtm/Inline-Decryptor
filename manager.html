@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="nl">
+  <head>
+    <meta charset="utf-8" />
+    <title data-i18n="appName">Wachtwoord Manager</title>
+    <style>
+      :root {
+        --green: #60a730;
+        --green-dark: #4f8f27;
+        --border: #e0e0e0;
+        --muted: #777;
+        --bg: #f6f7f5;
+      }
+      * { box-sizing: border-box; }
+      body { font-family: system-ui, sans-serif; margin: 0; background: var(--bg); color: #222; font-size: 14px; }
+      .wrap { max-width: 760px; margin: 0 auto; padding: 24px 20px 60px; }
+      h1 { font-size: 20px; margin: 0; }
+      h2 { font-size: 16px; margin: 0 0 12px; color: #222; }
+      label { display: block; font-size: 12px; color: var(--muted); margin: 8px 0 2px; }
+      input { width: 100%; padding: 9px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px; background: #fff; }
+      button { padding: 9px 14px; border: none; border-radius: 6px; background: var(--green); color: #fff; font-size: 14px; cursor: pointer; }
+      button:hover { background: var(--green-dark); }
+      button.secondary { background: #eaeaea; color: #333; }
+      button.secondary:hover { background: #dcdcdc; }
+      button.danger { background: #c0392b; }
+      button.danger:hover { background: #a83224; }
+      button.small { padding: 6px 11px; font-size: 12px; }
+      .row { display: flex; gap: 10px; }
+      .row > * { flex: 1; }
+      .status { min-height: 1em; font-size: 12px; margin: 8px 0 0; }
+      .status.error { color: #c0392b; }
+      .status.ok { color: var(--green); }
+      .muted { color: var(--muted); }
+      .hidden { display: none; }
+      .card { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+
+      .toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+      .toolbar .grow { flex: 1; }
+
+      .list { display: flex; flex-direction: column; gap: 8px; }
+      .entry { display: flex; align-items: center; gap: 12px; background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; }
+      .entry .info { flex: 1; min-width: 0; }
+      .entry .label { font-weight: 600; }
+      .entry .url { font-size: 12px; color: var(--muted); word-break: break-all; }
+      .entry .pw { font-family: monospace; font-size: 13px; color: #444; }
+      .entry .actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+      dialog { border: none; border-radius: 12px; padding: 0; width: 420px; max-width: 92vw; box-shadow: 0 10px 40px rgba(0,0,0,.25); }
+      dialog::backdrop { background: rgba(0,0,0,.4); }
+      .modal-body { padding: 22px; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <!-- SETUP -->
+      <section id="view-setup" class="hidden">
+        <h1 data-i18n="setupTitle">Kluis instellen</h1>
+        <p class="muted" data-i18n="setupIntro">Kies een hoofdwachtwoord of PIN. Dit ontgrendelt de kluis en wordt niet bewaard.</p>
+        <div class="card" style="max-width: 420px; margin-top: 12px;">
+          <label data-i18n="masterPw">Hoofdwachtwoord / PIN</label>
+          <input type="password" id="setup-pw" />
+          <label data-i18n="repeat">Herhaal</label>
+          <input type="password" id="setup-pw2" />
+          <div class="row">
+            <div><label data-i18n="autolockMin">Auto-lock (minuten)</label><input type="number" id="setup-lock" value="5" min="1" /></div>
+            <div><label data-i18n="idleSec">Afwezig na (seconden)</label><input type="number" id="setup-idle" value="60" min="15" /></div>
+          </div>
+          <p class="status" id="setup-status"></p>
+          <button id="setup-btn" style="margin-top: 10px;" data-i18n="createVault">Kluis aanmaken</button>
+        </div>
+      </section>
+
+      <!-- LOCKED -->
+      <section id="view-locked" class="hidden">
+        <h1 data-i18n="locked">Vergrendeld</h1>
+        <div class="card" style="max-width: 360px; margin-top: 12px;">
+          <label data-i18n="masterPw">Hoofdwachtwoord / PIN</label>
+          <input type="password" id="unlock-pw" />
+          <p class="status" id="unlock-status"></p>
+          <button id="unlock-btn" style="margin-top: 10px;" data-i18n="unlock">Ontgrendelen</button>
+        </div>
+      </section>
+
+      <!-- UNLOCKED -->
+      <section id="view-unlocked" class="hidden">
+        <div class="toolbar">
+          <h1 data-i18n="passwordsTitle">Wachtwoorden</h1>
+          <span class="muted" id="count"></span>
+          <span class="grow"></span>
+          <button id="new-btn" class="small" data-i18n="newEntry">+ Nieuw</button>
+          <button id="settings-btn" class="secondary small" data-i18n="settings">Instellingen</button>
+          <button id="backup-btn" class="secondary small" data-i18n="backup">Back-up</button>
+          <button id="lock-btn" class="secondary small" data-i18n="lock">Vergrendelen</button>
+        </div>
+
+        <input type="search" id="search" data-i18n-ph="searchPlaceholder" placeholder="Zoeken op naam of URL..." style="margin-bottom: 14px;" />
+        <div class="list" id="entry-list"></div>
+      </section>
+    </div>
+
+    <!-- MODAL: regel toevoegen / bewerken -->
+    <dialog id="modal">
+      <div class="modal-body">
+        <h2 id="modal-title" data-i18n="modalNew">Nieuwe regel</h2>
+        <input type="hidden" id="m-id" />
+        <label data-i18n="nameLabel">Naam (label)</label>
+        <input type="text" id="m-label" data-i18n-ph="namePlaceholder" placeholder="Bijv. Mijn server" />
+        <label data-i18n="urlLabel">URL (host, bijv. example.com of *.example.com)</label>
+        <input type="text" id="m-url" placeholder="example.com" />
+        <label data-i18n="pwForUrlLabel">Wachtwoord voor deze URL</label>
+        <input type="text" id="m-pw" data-i18n-ph="pwForUrlPlaceholder" placeholder="site-wachtwoord" />
+        <p class="status" id="m-status"></p>
+        <div class="row" style="margin-top: 14px;">
+          <button id="m-save" data-i18n="save">Opslaan</button>
+          <button id="m-cancel" class="secondary" data-i18n="cancel">Annuleren</button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- MODAL: instellingen -->
+    <dialog id="settings-modal">
+      <div class="modal-body">
+        <h2 data-i18n="settings">Instellingen</h2>
+        <div class="row">
+          <div><label data-i18n="autolockMin">Auto-lock (minuten)</label><input type="number" id="set-lock" min="1" /></div>
+          <div><label data-i18n="idleSec">Afwezig na (seconden)</label><input type="number" id="set-idle" min="15" /></div>
+        </div>
+        <p class="status" id="settings-status"></p>
+        <button id="change-pw-btn" class="secondary" style="width:100%;margin-top:6px;" data-i18n="changePwBtn">Hoofdwachtwoord wijzigen&hellip;</button>
+        <div class="row" style="margin-top: 14px;">
+          <button id="settings-save" data-i18n="save">Opslaan</button>
+          <button id="settings-cancel" class="secondary" data-i18n="close">Sluiten</button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- MODAL: back-up (export / import) -->
+    <dialog id="backup-modal">
+      <div class="modal-body">
+        <h2 id="backup-title" data-i18n="backup">Back-up</h2>
+
+        <!-- stap 1: keuze -->
+        <div id="backup-actions">
+          <p class="muted" data-i18n="backupIntro">Maak een versleutelde back-up van je kluis, of zet er een terug. De back-up wordt beveiligd met een wachtwoord dat je zelf kiest.</p>
+          <div class="row" style="margin-top: 10px;">
+            <button id="export-btn" class="secondary" data-i18n="exportEllipsis">Exporteren&hellip;</button>
+            <button id="import-btn" class="secondary" data-i18n="importEllipsis">Importeren&hellip;</button>
+          </div>
+          <input type="file" id="import-file" accept="application/json,.json" class="hidden" />
+          <p class="status" id="backup-result"></p>
+          <div class="row" style="margin-top: 14px;">
+            <button id="backup-close" class="secondary" data-i18n="close">Sluiten</button>
+          </div>
+        </div>
+
+        <!-- stap 2: wachtwoord -->
+        <div id="backup-form" class="hidden">
+          <p class="muted" id="backup-desc"></p>
+          <label data-i18n="backupPwLabel">Back-up-wachtwoord</label>
+          <input type="password" id="backup-pw" />
+          <div id="backup-confirm-wrap">
+            <label data-i18n="repeat">Herhaal</label>
+            <input type="password" id="backup-pw2" />
+          </div>
+          <p class="status" id="backup-status"></p>
+          <div class="row" style="margin-top: 14px;">
+            <button id="backup-ok" data-i18n="continueBtn">Doorgaan</button>
+            <button id="backup-back" class="secondary" data-i18n="back">Terug</button>
+          </div>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- MODAL: verwijderen bevestigen -->
+    <dialog id="confirm-modal">
+      <div class="modal-body">
+        <h2 id="confirm-title" data-i18n="confirmDeleteTitle">Verwijderen?</h2>
+        <p class="muted" data-i18n="confirmDeleteText">Weet je zeker dat je deze regel wilt verwijderen? Dit kan niet ongedaan worden gemaakt.</p>
+        <p id="confirm-name" style="font-weight:600;word-break:break-all;margin:6px 0 0;"></p>
+        <div class="row" style="margin-top: 14px;">
+          <button id="confirm-delete" class="danger" data-i18n="delete">Verwijder</button>
+          <button id="confirm-cancel" class="secondary" data-i18n="cancel">Annuleren</button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- MODAL: hoofdwachtwoord wijzigen -->
+    <dialog id="password-modal">
+      <div class="modal-body">
+        <h2 data-i18n="changePwTitle">Hoofdwachtwoord wijzigen</h2>
+        <label data-i18n="currentPw">Huidig hoofdwachtwoord</label>
+        <input type="password" id="pw-current" />
+        <label data-i18n="newPw">Nieuw hoofdwachtwoord</label>
+        <input type="password" id="pw-new" />
+        <label data-i18n="repeat">Herhaal</label>
+        <input type="password" id="pw-new2" />
+        <p class="status" id="password-status"></p>
+        <div class="row" style="margin-top: 14px;">
+          <button id="password-save" data-i18n="save">Opslaan</button>
+          <button id="password-cancel" class="secondary" data-i18n="cancel">Annuleren</button>
+        </div>
+      </div>
+    </dialog>
+
+    <script src="i18n.js"></script>
+    <script src="manager.js"></script>
+  </body>
+</html>

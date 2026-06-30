@@ -1,0 +1,32 @@
+Belangrijk om te weten: die gegevens staan niet in de gewone "Local Storage" van een website. De extensie gebruikt bewust chrome.storage (extensie-opslag), niet de localStorage van de pagina. Daarom zie je niets als je op een normale webpagina via Inspecteren → Application → Local Storage kijkt — en dat is precies de bedoeling: de site-wachtwoorden komen nooit in de opslag van de webpagina terecht.
+Je moet dus de DevTools van de extensie zelf openen. In Vivaldi:
+Manier 1 — via de beheerpagina
+
+Open de beheerpagina van de extensie in een tab (manager.html).
+Rechtermuisknop → Inspecteren.
+Ga naar het tabblad Application (Applicatie).
+In de linkerkolom onder Storage vind je een sectie voor extensie-opslag (Extension storage) met daaronder Local, Session en Sync.
+
+Local: hier staan vault (met salt, iv, ct), settings en lang.
+Session: hier staat unlock — maar alléén als de kluis op dat moment ontgrendeld is.
+
+
+
+Manier 2 — via de service worker
+
+Ga naar vivaldi://extensions.
+Zet rechtsboven Ontwikkelaarsmodus aan.
+Klik bij jouw extensie op service worker (onder "Weergaven inspecteren"). Daar opent DevTools voor de achtergrond; ook daar staat hetzelfde onder Application → Storage.
+
+Gegarandeerde methode — via de Console
+
+Werkt ongeacht of het paneel "Extension storage" in jouw Vivaldi-versie zichtbaar is. Open DevTools van de beheerpagina of de service worker, ga naar Console en typ:
+jschrome.storage.local.get(null).then(console.log)
+chrome.storage.session.get(null).then(console.log)
+De eerste toont vault, settings en lang; de tweede toont unlock (alleen indien ontgrendeld).
+Wat je dan ziet, is meteen een goede controle dat het veilig zit:
+
+In vault zie je alleen salt, iv en ct — ct is de versleutelde inhoud (ciphertext). Je site-wachtwoorden staan daar dus niet leesbaar in; zonder je hoofdwachtwoord is het onleesbaar.
+unlock (in session, niet local) bevat de tijdelijke sleutel en verdwijnt automatisch bij het afsluiten van de browser of bij auto-lock.
+
+Wil je ter vergelijking bevestigen dat er niets op de webpagina zelf lekt: open een gewone site met versleutelde tekst, ga naar Application → Local Storage / Session Storage van díe pagina — daar hoort niets van de kluis te staan.

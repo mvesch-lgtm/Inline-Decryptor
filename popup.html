@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="nl">
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      :root { --green:#60a730; --green-dark:#4f8f27; --border:#d9d9d9; --muted:#777; }
+      * { box-sizing:border-box; }
+      body { font-family:system-ui,sans-serif; width:260px; margin:0; padding:14px; font-size:14px; color:#222; }
+      h1 { font-size:15px; margin:0 0 10px; }
+      input { width:100%; padding:8px; border:1px solid var(--border); border-radius:5px; font-size:14px; margin-bottom:8px; }
+      button { width:100%; padding:9px; border:none; border-radius:5px; background:var(--green); color:#fff; font-size:14px; cursor:pointer; margin-bottom:8px; }
+      button:hover { background:var(--green-dark); }
+      button.secondary { background:#eee; color:#333; }
+      button.secondary:hover { background:#e0e0e0; }
+      .status { min-height:1em; font-size:12px; color:#c0392b; margin:0 0 8px; }
+      .muted { color:var(--muted); font-size:12px; margin:0 0 10px; }
+      .hidden { display:none; }
+
+      .langbar { display:flex; gap:4px; justify-content:flex-end; margin-bottom:10px; }
+      .langbar button.lang { width:auto; margin:0; padding:3px 9px; font-size:12px; background:#eee; color:#555; border-radius:5px; }
+      .langbar button.lang:hover { background:#e0e0e0; }
+      .langbar button.lang.active { background:var(--green); color:#fff; }
+      .langbar button.lang.active:hover { background:var(--green-dark); }
+    </style>
+  </head>
+  <body>
+    <div class="langbar">
+      <button class="lang" id="lang-nl" type="button">NL</button>
+      <button class="lang" id="lang-en" type="button">EN</button>
+    </div>
+
+    <section id="p-setup" class="hidden">
+      <h1 data-i18n="appName">Wachtwoord Manager</h1>
+      <p class="muted" data-i18n="noVault">Nog geen kluis ingesteld.</p>
+      <button id="open-setup" data-i18n="setupVault">Kluis instellen</button>
+    </section>
+
+    <section id="p-locked" class="hidden">
+      <h1 data-i18n="locked">Vergrendeld</h1>
+      <input type="password" id="p-pw" data-i18n-ph="masterPw" placeholder="Hoofdwachtwoord / PIN" />
+      <p class="status" id="p-status"></p>
+      <button id="p-unlock" data-i18n="unlock">Ontgrendelen</button>
+    </section>
+
+    <section id="p-unlocked" class="hidden">
+      <h1 data-i18n="unlocked">Ontgrendeld</h1>
+      <p class="muted" id="p-count"></p>
+      <button id="open-manager" data-i18n="openManager">Beheer openen</button>
+      <button id="p-lock" class="secondary" data-i18n="lock">Vergrendelen</button>
+    </section>
+
+    <!-- Versleutel/ontsleutel-hulpmiddel: beschikbaar zodra er een kluis is
+         (handmatige modus werkt ook als de kluis vergrendeld is). -->
+    <button id="p-crypto" class="secondary hidden" data-i18n="cryptoOpen">Versleutelen / ontsleutelen&hellip;</button>
+
+    <script src="i18n.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>
