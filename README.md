@@ -36,7 +36,7 @@ include_once 'Encrypt_Function.php';
 ```
 
 
-
+(i let ai create the silly text below)
 Privacy Policy
 
 <p>English.</p>
